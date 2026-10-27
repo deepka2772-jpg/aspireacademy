@@ -24,6 +24,7 @@ import {
   TermsPage,
   RefundPolicyPage,
 } from './pages/PublicPages';
+import { TestSeriesPage } from './pages/TestSeriesPage';
 import { Course, Category, Faculty, SiteSettings, Enrollment, Order } from './types';
 import {
   getPublishedCourses,
@@ -35,10 +36,10 @@ import {
 import { getUserEnrollments, checkIsEnrolled } from './services/enrollmentService';
 import { isDatabaseEmpty, seedInitialPlatformData } from './services/seedService';
 import { validateFirestoreConnection } from './firebase/config';
-import { ShieldAlert, BookOpen, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Shield, ShieldAlert, BookOpen, AlertCircle, ArrowLeft, Key, Zap } from 'lucide-react';
 
 function MainApp() {
-  const { currentUser, userProfile, isAdmin, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, isAdmin, loading: authLoading, quickAdminLogin } = useAuth();
 
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('home');
@@ -59,6 +60,7 @@ function MainApp() {
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalPortal, setAuthModalPortal] = useState<'student' | 'admin'>('student');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [courseToBuy, setCourseToBuy] = useState<Course | null>(null);
 
@@ -197,8 +199,9 @@ function MainApp() {
           setCurrentTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenAuth={(mode = 'login') => {
+        onOpenAuth={(mode = 'login', portal = 'student') => {
           setAuthModalMode(mode);
+          setAuthModalPortal(portal);
           setAuthModalOpen(true);
         }}
       />
@@ -226,8 +229,9 @@ function MainApp() {
                   setCurrentTab(t);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                onOpenAuth={(mode) => {
+                onOpenAuth={(mode, portal) => {
                   setAuthModalMode(mode || 'register');
+                  setAuthModalPortal(portal || 'student');
                   setAuthModalOpen(true);
                 }}
               />
@@ -364,6 +368,17 @@ function MainApp() {
             {/* ABOUT US */}
             {currentTab === 'about' && <AboutPage />}
 
+            {/* 16 CHAPTER SCIENCE TEST SERIES */}
+            {currentTab === 'tests' && (
+              <TestSeriesPage
+                onOpenAuth={(mode, portal) => {
+                  setAuthModalMode(mode || 'login');
+                  setAuthModalPortal(portal || 'student');
+                  setAuthModalOpen(true);
+                }}
+              />
+            )}
+
             {/* CONTACT US */}
             {currentTab === 'contact' && <ContactPage />}
 
@@ -393,25 +408,69 @@ function MainApp() {
               />
             )}
 
-            {/* ADMINISTRATOR DASHBOARD */}
+            {/* ADMINISTRATOR DASHBOARD & GATEWAY */}
             {currentTab === 'admin' && (
               isAdmin ? (
                 <AdminDashboard onPreviewCourse={handleSelectCourse} />
               ) : (
-                <div className="max-w-md mx-auto my-20 p-8 bg-white rounded-3xl border border-red-200 text-center space-y-4 shadow-sm">
-                  <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-                    <ShieldAlert className="w-8 h-8" />
+                <div className="max-w-lg mx-auto my-16 px-4">
+                  <div className="bg-white rounded-3xl border border-amber-200 shadow-xl p-8 text-center space-y-5">
+                    <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-md shadow-amber-500/10">
+                      <Shield className="w-8 h-8" />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                        Admin Control Gateway
+                      </span>
+                      <h2 className="text-2xl font-black text-slate-900 mt-2">
+                        Administrator Access
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        Sign in with the authorized platform administrator account to manage courses, video sources (Cloudflare R2 & YouTube), batches & students.
+                      </p>
+                    </div>
+
+                    <div className="pt-2 space-y-3">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await quickAdminLogin();
+                            setCurrentTab('admin');
+                          } catch (err) {
+                            console.error('Quick admin login error:', err);
+                            setAuthModalMode('login');
+                            setAuthModalPortal('admin');
+                            setAuthModalOpen(true);
+                          }
+                        }}
+                        className="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Key className="w-4 h-4" />
+                        <span>1-Click Admin Access (deepka2772@gmail.com)</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setAuthModalMode('login');
+                          setAuthModalPortal('admin');
+                          setAuthModalOpen(true);
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-xs transition-colors"
+                      >
+                        Sign In With Custom Credentials
+                      </button>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => setCurrentTab('home')}
+                        className="text-xs font-bold text-slate-400 hover:text-slate-600"
+                      >
+                        ← Return to Public Website
+                      </button>
+                    </div>
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    This section is restricted to Aspire Academy platform administrators. Please sign in with an administrator account to access the control panel.
-                  </p>
-                  <button
-                    onClick={() => setCurrentTab('home')}
-                    className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
-                  >
-                    Return to Home
-                  </button>
                 </div>
               )
             )}
@@ -426,8 +485,9 @@ function MainApp() {
           setCurrentTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenAuth={(mode) => {
+        onOpenAuth={(mode, portal) => {
           setAuthModalMode(mode === 'register' ? 'register' : 'login');
+          setAuthModalPortal(portal || 'student');
           setAuthModalOpen(true);
         }}
       />
@@ -444,9 +504,15 @@ function MainApp() {
       <AuthModal
         isOpen={authModalOpen}
         initialMode={authModalMode}
+        initialPortal={authModalPortal}
         onClose={() => setAuthModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(portal) => {
           refreshUserEnrollments();
+          if (portal === 'admin' || isAdmin) {
+            setCurrentTab('admin');
+          } else {
+            setCurrentTab('dashboard');
+          }
         }}
       />
 

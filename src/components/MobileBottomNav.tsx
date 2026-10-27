@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 interface MobileBottomNavProps {
   currentTab: string;
   onNavigate: (tab: string) => void;
-  onOpenAuth: (mode?: 'login' | 'register') => void;
+  onOpenAuth: (mode?: 'login' | 'register', portal?: 'student' | 'admin') => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({

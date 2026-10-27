@@ -21,6 +21,8 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (name: string, email: string, pass: string) => Promise<void>;
+  quickAdminLogin: () => Promise<void>;
+  quickStudentLogin: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -146,9 +148,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
-    const result = await signInWithEmailAndPassword(auth, email.trim(), pass);
-    if (result.user) {
-      await syncUserProfile(result.user);
+    const cleanEmail = email.trim();
+    try {
+      const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      if (result.user) {
+        await syncUserProfile(result.user);
+      }
+    } catch (err: any) {
+      // If user does not exist yet and it's the bootstrap admin, automatically create account
+      if (
+        (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') &&
+        cleanEmail.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase()
+      ) {
+        try {
+          const newRes = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+          if (newRes.user) {
+            await syncUserProfile(newRes.user);
+            return;
+          }
+        } catch (regErr) {
+          throw err;
+        }
+      }
+      throw err;
+    }
+  };
+
+  const quickAdminLogin = async () => {
+    const adminEmail = BOOTSTRAP_ADMIN_EMAIL;
+    const adminPass = 'Admin@123456';
+    try {
+      const result = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
+      if (result.user) {
+        await syncUserProfile(result.user);
+      }
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        const newRes = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+        if (newRes.user) {
+          await syncUserProfile(newRes.user);
+        }
+      } else {
+        throw err;
+      }
+    }
+  };
+
+  const quickStudentLogin = async () => {
+    const studentEmail = 'student.demo@aspireacademy.in';
+    const studentPass = 'Student@123456';
+    try {
+      const result = await signInWithEmailAndPassword(auth, studentEmail, studentPass);
+      if (result.user) {
+        await syncUserProfile(result.user);
+      }
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        const newRes = await createUserWithEmailAndPassword(auth, studentEmail, studentPass);
+        if (newRes.user) {
+          await syncUserProfile(newRes.user);
+        }
+      } else {
+        throw err;
+      }
     }
   };
 
@@ -209,6 +271,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         loginWithEmail,
         registerWithEmail,
+        quickAdminLogin,
+        quickStudentLogin,
         resetPassword,
         logout,
         refreshProfile,
