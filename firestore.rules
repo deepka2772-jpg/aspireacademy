@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'deepka2772@gmail.com'
+      );
+    }
+
+    // Default catch-all denies everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        !('role' in request.resource.data) || request.resource.data.role == 'student' || isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Admins list
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Courses collection
+    match /courses/{courseId} {
+      allow get, list: if resource.data.isPublished == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Lessons collection
+    match /lessons/{lessonId} {
+      allow get, list: if resource.data.isPublished == true && (
+        resource.data.isFreePreview == true ||
+        isAdmin() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + resource.data.courseId)))
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Faculty
+    match /faculty/{facultyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Batches
+    match /batches/{batchId} {
+      allow get, list: if resource.data.isPublished == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Enrollments
+    match /enrollments/{enrollmentId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Quizzes
+    match /quizzes/{quizId} {
+      allow get, list: if resource.data.isPublished == true && (
+        isAdmin() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + resource.data.courseId)))
+      );
+      allow write: if isAdmin();
+    }
+
+    // Quiz attempts
+    match /quizAttempts/{attemptId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Study Materials
+    match /materials/{materialId} {
+      allow get, list: if resource.data.isFreePreview == true ||
+        isAdmin() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + resource.data.courseId)));
+      allow write: if isAdmin();
+    }
+
+    // Site settings
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

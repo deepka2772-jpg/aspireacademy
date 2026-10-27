@@ -1,0 +1,275 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with role and identification",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 256 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin Record",
+      "description": "Trusted admin whitelist",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 256 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "addedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["email", "uid"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Educational course catalog item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "shortDescription": { "type": "string", "maxLength": 500 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "thumbnail": { "type": "string", "maxLength": 1000 },
+        "thumbnailObjectKey": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "maxLength": 100 },
+        "targetClass": { "type": "string", "maxLength": 100 },
+        "facultyName": { "type": "string", "maxLength": 128 },
+        "duration": { "type": "string", "maxLength": 100 },
+        "syllabus": { "type": "string", "maxLength": 10000 },
+        "lessonCount": { "type": "number" },
+        "isFree": { "type": "boolean" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["title", "category", "isFree", "price", "isPublished"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Individual course lesson with media or material link",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 250 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "sourceType": { "type": "string", "enum": ["youtube", "r2_video"] },
+        "contentType": { "type": "string", "enum": ["youtube", "youtube_live", "r2_video", "pdf"] },
+        "contentUrl": { "type": "string", "maxLength": 2000 },
+        "r2ObjectKey": { "type": "string", "maxLength": 500 },
+        "youtubeId": { "type": "string", "maxLength": 128 },
+        "duration": { "type": "string", "maxLength": 64 },
+        "order": { "type": "number" },
+        "isFreePreview": { "type": "boolean" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["courseId", "title", "order", "isFreePreview", "isPublished"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Course category grouping",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "icon": { "type": "string", "maxLength": 64 },
+        "courseCount": { "type": "number" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["name", "slug", "isPublished"]
+    },
+    "Faculty": {
+      "title": "Faculty Member",
+      "description": "Teacher profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 128 },
+        "bio": { "type": "string", "maxLength": 2000 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "subject": { "type": "string", "maxLength": 128 },
+        "qualification": { "type": "string", "maxLength": 200 },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["name", "subject", "isPublished"]
+    },
+    "Batch": {
+      "title": "Batch",
+      "description": "Course cohort batch",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 150 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "courseTitle": { "type": "string", "maxLength": 200 },
+        "startDate": { "type": "string", "maxLength": 64 },
+        "endDate": { "type": "string", "maxLength": 64 },
+        "schedule": { "type": "string", "maxLength": 256 },
+        "teacherName": { "type": "string", "maxLength": 128 },
+        "maxStudents": { "type": "number" },
+        "enrolledCount": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["name", "courseId", "isPublished"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student enrollment record for a course",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "courseTitle": { "type": "string", "maxLength": 200 },
+        "courseThumbnail": { "type": "string", "maxLength": 1000 },
+        "enrolledAt": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] }
+      },
+      "required": ["userId", "courseId", "status", "enrolledAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Course purchase and payment order",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 128 },
+        "razorpayOrderId": { "type": "string", "maxLength": 128 },
+        "razorpayPaymentId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "format": "email", "maxLength": 256 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "courseTitle": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "status": { "type": "string", "enum": ["created", "paid", "failed", "refunded"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "paidAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["orderId", "userId", "courseId", "amount", "status"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Quiz or test with questions",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "maxLength": 128 },
+        "lessonId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "instructions": { "type": "string", "maxLength": 2000 },
+        "passingPercentage": { "type": "number" },
+        "timeLimitMinutes": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["courseId", "title", "passingPercentage", "isPublished"]
+    },
+    "QuizAttempt": {
+      "title": "Quiz Attempt",
+      "description": "Student quiz submission result",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "score": { "type": "number" },
+        "totalMarks": { "type": "number" },
+        "percentage": { "type": "number" },
+        "passed": { "type": "boolean" },
+        "completedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["quizId", "userId", "score", "totalMarks", "completedAt"]
+    },
+    "Material": {
+      "title": "Learning Material",
+      "description": "Downloadable syllabus or notes resource",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "fileType": { "type": "string", "maxLength": 50 },
+        "fileUrl": { "type": "string", "maxLength": 2000 },
+        "fileSize": { "type": "string", "maxLength": 50 },
+        "isFreePreview": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["courseId", "title", "fileType", "fileUrl"]
+    },
+    "Settings": {
+      "title": "Site Settings",
+      "description": "General settings and contact info for the academy",
+      "type": "object",
+      "properties": {
+        "academyName": { "type": "string", "maxLength": 128 },
+        "tagline": { "type": "string", "maxLength": 256 },
+        "contactEmail": { "type": "string", "format": "email", "maxLength": 256 },
+        "contactPhone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 256 },
+        "announcement": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["academyName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles. Owned by user, read/updated by owner or admin."
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Admin authorization documents."
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Published courses are publicly readable. Managed by admins."
+    },
+    "/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Course lessons. Preview lessons readable publicly; full lessons readable by enrolled students and admins."
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Course categories. Publicly readable."
+    },
+    "/faculty/{facultyId}": {
+      "schema": "Faculty",
+      "description": "Faculty profiles. Publicly readable."
+    },
+    "/batches/{batchId}": {
+      "schema": "Batch",
+      "description": "Live batch schedules. Publicly readable if published."
+    },
+    "/enrollments/{enrollmentId}": {
+      "schema": "Enrollment",
+      "description": "Student course enrollments. Read by owner and admin."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Payment orders. Read by owner and admin. Written only with verified payment details or server."
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Quizzes and tests. Readable by enrolled students and admin."
+    },
+    "/quizAttempts/{attemptId}": {
+      "schema": "QuizAttempt",
+      "description": "Student quiz results. Read by owner and admin."
+    },
+    "/materials/{materialId}": {
+      "schema": "Material",
+      "description": "Study notes and PDF resources."
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Academy site-wide settings."
+    }
+  }
+}
