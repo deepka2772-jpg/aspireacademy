@@ -24,7 +24,10 @@ import {
   Lock,
   ExternalLink,
   ShieldAlert,
+  Key,
+  ShieldCheck,
 } from 'lucide-react';
+import { useAuth, DEFAULT_MASTER_ADMIN_PASSWORD } from '../context/AuthContext';
 import {
   Course,
   Lesson,
@@ -81,8 +84,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
   const [categories, setCategories] = useState<Category[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const { updateMasterAdminPassword } = useAuth();
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [adminPwdInput, setAdminPwdInput] = useState<string>(DEFAULT_MASTER_ADMIN_PASSWORD);
+  const [savingPwd, setSavingPwd] = useState<boolean>(false);
   const [studentUsers, setStudentUsers] = useState<any[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
 
@@ -145,6 +150,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
       setBatches(bList);
       setQuizzes(qList);
       setSiteSettings(settings);
+      if (settings?.adminMasterPassword) {
+        setAdminPwdInput(settings.adminMasterPassword);
+      }
       setPaymentStatus(payCfg);
       setStorageStatus(storCfg);
 
@@ -1560,6 +1568,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
                   >
                     Save Site Settings
                   </button>
+                </div>
+
+                {/* Master Admin Security & Portability Form */}
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border border-amber-200 shadow-sm space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                      <Key className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Master Admin Password & Portability</h3>
+                      <p className="text-xs text-slate-500">
+                        Independent login password for this platform. Zero Google account lockouts when transferring to another GitHub or Hostinger.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-amber-900 uppercase mb-1">
+                        Active Master Admin Password
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value={adminPwdInput}
+                          onChange={(e) => setAdminPwdInput(e.target.value)}
+                          placeholder="e.g. AspireAdmin@2026"
+                          className="flex-1 px-3.5 py-2.5 rounded-xl border border-amber-300 font-mono text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                        <button
+                          disabled={savingPwd}
+                          onClick={async () => {
+                            if (!adminPwdInput.trim() || adminPwdInput.trim().length < 6) {
+                              showNotify('Password must be at least 6 characters long.', 'error');
+                              return;
+                            }
+                            setSavingPwd(true);
+                            try {
+                              await updateMasterAdminPassword(adminPwdInput.trim());
+                              if (siteSettings) {
+                                await saveSiteSettings({ ...siteSettings, adminMasterPassword: adminPwdInput.trim() });
+                              }
+                              showNotify('Master Admin Password updated successfully!');
+                            } catch (err: any) {
+                              showNotify(err.message || 'Failed to update admin password', 'error');
+                            } finally {
+                              setSavingPwd(false);
+                            }
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {savingPwd ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="w-4 h-4" />
+                          )}
+                          <span>Update Master Password</span>
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-amber-800 mt-1.5">
+                        Default Password: <code className="font-bold bg-amber-100 px-1 py-0.5 rounded text-amber-950">AspireAdmin@2026</code>. You can change it to whatever you want.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Shifting Code & Hostinger Hosting Guide */}
+                  <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <h4 className="font-bold text-white text-sm">Deployment & Account Migration Guide (Hostinger / New GitHub)</h4>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      Aap is poore codebase ko kisi bhi doosre GitHub account ya doosre Gmail par shift kar sakte hain aur <strong>Hostinger Web Hosting</strong> ya <strong>Cloud</strong> par host kar sakte hain:
+                    </p>
+                    <ol className="list-decimal pl-5 space-y-1.5 text-slate-300 text-[11px]">
+                      <li>
+                        <strong>Hostinger Build:</strong> Hostinger par deploy karne ke liye <code className="text-emerald-300 bg-slate-800 px-1 py-0.5 rounded">npm run build</code> chalayein aur generate hua <code className="text-emerald-300 bg-slate-800 px-1 py-0.5 rounded">dist/</code> folder upload kar dein.
+                      </li>
+                      <li>
+                        <strong>Admin Login:</strong> Admin panel me login karne ke liye upar set kiya hua Master Password (<code className="text-amber-300 bg-slate-800 px-1 py-0.5 rounded">{adminPwdInput || 'AspireAdmin@2026'}</code>) daalein. Kisi Google login ya authorized domain ki jarurat nahi padegi!
+                      </li>
+                      <li>
+                        <strong>Student Portal:</strong> Students bina kisi domain restriction ke aaram se Email/Password se Register aur Login kar sakte hain.
+                      </li>
+                    </ol>
+                  </div>
                 </div>
               </div>
             )}

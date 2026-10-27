@@ -176,5 +176,7 @@ export interface SiteSettings {
   announcement?: string;
   heroTitle?: string;
   heroSubtitle?: string;
+  adminMasterPassword?: string;
   updatedAt?: string;
 }
+
