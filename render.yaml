@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: aspireacademy
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.4
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
