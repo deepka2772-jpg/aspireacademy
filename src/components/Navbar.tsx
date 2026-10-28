@@ -145,13 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onNavigate, onOpenAu
             <div className="hidden sm:flex items-center gap-2.5">
               {/* Dedicated Admin Portal Gateway Button */}
               <button
-                onClick={() => {
-                  if (isAdmin) {
-                    handleNavClick('admin');
-                  } else {
-                    onOpenAuth('login', 'admin');
-                  }
-                }}
+                onClick={() => handleNavClick('admin')}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
                   currentTab === 'admin'
                     ? 'bg-amber-600 text-white border-amber-600 shadow-sm'

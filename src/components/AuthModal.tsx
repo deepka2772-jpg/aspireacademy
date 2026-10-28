@@ -442,6 +442,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>1-Click Demo Student Access (Aarav Sharma)</span>
                 </button>
 
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                  <span className="font-bold text-amber-950 block">💡 Gmail se Direct Login:</span>
+                  <span>Google popup me unauthorized domain error aane par neeche apna <strong>Gmail</strong> aur <strong>Password</strong> likh kar direct Sign In / Register karein — account turant khul jayega!</span>
+                </div>
+
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-200"></div>

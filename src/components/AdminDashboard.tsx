@@ -23,9 +23,9 @@ import {
   ArrowDown,
   Lock,
   ExternalLink,
-  ShieldAlert,
   Key,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import { useAuth, DEFAULT_MASTER_ADMIN_PASSWORD } from '../context/AuthContext';
 import {
@@ -125,8 +125,139 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
   // Batch Edit Modal State
   const [editingBatch, setEditingBatch] = useState<Partial<Batch> | null>(null);
 
-  // Quiz Edit Modal State
+  // Quiz Edit & MS Word Upload Modal State
   const [editingQuiz, setEditingQuiz] = useState<Partial<Quiz> | null>(null);
+  const [showWordQuizModal, setShowWordQuizModal] = useState<boolean>(false);
+  const [quizCourseId, setQuizCourseId] = useState<string>('');
+  const [quizTitleInput, setQuizTitleInput] = useState<string>('');
+  const [quizWordRawText, setQuizWordRawText] = useState<string>('');
+  const [parsedQuizQuestions, setParsedQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizTimeMinutes, setQuizTimeMinutes] = useState<number>(15);
+  const [quizPassingMarks, setQuizPassingMarks] = useState<number>(50);
+  const [savingQuiz, setSavingQuiz] = useState<boolean>(false);
+  const [viewingQuizDetails, setViewingQuizDetails] = useState<Quiz | null>(null);
+
+  // Helper parser for Word document / text questions
+  const parseQuestionsFromText = (raw: string): QuizQuestion[] => {
+    if (!raw.trim()) return [];
+    const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const questions: QuizQuestion[] = [];
+    let currentQ: Partial<QuizQuestion> | null = null;
+    let currentOptions: string[] = [];
+
+    const optionRegex = /^(\(?[A-Da-d1-4]\)?|[A-Da-d1-4][.)\-])\s*(.*)$/;
+    const answerRegex = /^(ans|answer|correct|उत्तर|सही उत्तर)[:\s\-]+([A-Da-d1-4])/i;
+    const qNumRegex = /^(\d+|Q\d+|Question\s*\d+)[:.)\-]\s*(.*)$/i;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check if line indicates answer
+      const ansMatch = line.match(answerRegex);
+      if (ansMatch && currentQ) {
+        const letter = ansMatch[2].toUpperCase();
+        let ansIdx = 0;
+        if (letter === 'A' || letter === '1') ansIdx = 0;
+        else if (letter === 'B' || letter === '2') ansIdx = 1;
+        else if (letter === 'C' || letter === '3') ansIdx = 2;
+        else if (letter === 'D' || letter === '4') ansIdx = 3;
+        currentQ.correctAnswerIndex = ansIdx;
+        continue;
+      }
+
+      // Check if line is an option A, B, C, D
+      const optMatch = line.match(optionRegex);
+      if (optMatch && currentQ) {
+        currentOptions.push(optMatch[2] || line);
+        continue;
+      }
+
+      // Check if line starts a new question
+      const qMatch = line.match(qNumRegex);
+      if (qMatch) {
+        if (currentQ && currentQ.question) {
+          questions.push({
+            id: `q_${questions.length + 1}`,
+            question: currentQ.question,
+            options: currentOptions.length >= 2 ? currentOptions : ['Option A', 'Option B', 'Option C', 'Option D'],
+            marks: 1,
+            correctAnswerIndex: currentQ.correctAnswerIndex !== undefined ? currentQ.correctAnswerIndex : 0,
+          });
+        }
+        currentQ = { question: qMatch[2] || line, marks: 1, correctAnswerIndex: 0 };
+        currentOptions = [];
+      } else if (!currentQ) {
+        currentQ = { question: line, marks: 1, correctAnswerIndex: 0 };
+        currentOptions = [];
+      } else if (currentOptions.length === 0) {
+        currentQ.question += ' ' + line;
+      }
+    }
+
+    if (currentQ && currentQ.question) {
+      questions.push({
+        id: `q_${questions.length + 1}`,
+        question: currentQ.question,
+        options: currentOptions.length >= 2 ? currentOptions : ['Option A', 'Option B', 'Option C', 'Option D'],
+        marks: 1,
+        correctAnswerIndex: currentQ.correctAnswerIndex !== undefined ? currentQ.correctAnswerIndex : 0,
+      });
+    }
+
+    return questions;
+  };
+
+  const handleSaveWordQuiz = async () => {
+    if (!quizCourseId) {
+      showNotify('Please select a course for this quiz', 'error');
+      return;
+    }
+    if (!quizTitleInput.trim()) {
+      showNotify('Please enter a quiz title', 'error');
+      return;
+    }
+    if (parsedQuizQuestions.length === 0) {
+      showNotify('No valid questions parsed from text. Please check format.', 'error');
+      return;
+    }
+
+    setSavingQuiz(true);
+    try {
+      await saveQuiz({
+        courseId: quizCourseId,
+        title: quizTitleInput.trim(),
+        instructions: `Total ${parsedQuizQuestions.length} Questions. Passing score is ${quizPassingMarks}%.`,
+        passingPercentage: quizPassingMarks,
+        timeLimitMinutes: quizTimeMinutes,
+        questions: parsedQuizQuestions,
+        isPublished: true,
+      });
+
+      const updated = await getAllQuizzesAdmin();
+      setQuizzes(updated);
+      setShowWordQuizModal(false);
+      setQuizTitleInput('');
+      setQuizWordRawText('');
+      setParsedQuizQuestions([]);
+      showNotify(`Success! Quiz with ${parsedQuizQuestions.length} questions saved to database.`);
+    } catch (err: any) {
+      showNotify(err.message || 'Failed to save quiz', 'error');
+    } finally {
+      setSavingQuiz(false);
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId: string) => {
+    if (!window.confirm('Are you sure you want to delete this quiz?')) return;
+    try {
+      await deleteQuiz(quizId);
+      const updated = await getAllQuizzesAdmin();
+      setQuizzes(updated);
+      showNotify('Quiz deleted successfully.');
+    } catch (err: any) {
+      showNotify(err.message || 'Failed to delete quiz', 'error');
+    }
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -1420,39 +1551,267 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
             {activeSection === 'students' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Enrollments & Progress</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Students with active course access recorded in Firestore.</p>
+                  <h2 className="text-xl font-bold text-slate-900">Student Directory & Course Enrollments</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    View registered student profiles and see exactly which courses each student has purchased and their progress.
+                  </p>
                 </div>
 
+                {/* Quick Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-semibold">Registered Students</p>
+                      <h4 className="text-2xl font-black text-slate-900 mt-0.5">{studentUsers.length || 0}</h4>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                      <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-semibold">Total Course Enrollments</p>
+                      <h4 className="text-2xl font-black text-slate-900 mt-0.5">{allEnrollments.length || 0}</h4>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                      <CreditCard className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-semibold">Total Verified Orders</p>
+                      <h4 className="text-2xl font-black text-slate-900 mt-0.5">{orders.length || 0}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 1. REGISTERED STUDENT PROFILES TABLE */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900">Registered Student Profiles (पंजीकृत छात्र)</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Students who registered via Gmail or Student Portal</p>
+                    </div>
+                    <span className="text-xs font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                      {studentUsers.length} Students
+                    </span>
+                  </div>
+
+                  {studentUsers.length === 0 ? (
+                    <div className="p-10 text-center text-slate-400">
+                      <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-xs">No registered students yet.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-bold border-b border-slate-100">
+                          <tr>
+                            <th className="py-3 px-4">Student</th>
+                            <th className="py-3 px-4">Email</th>
+                            <th className="py-3 px-4">Role</th>
+                            <th className="py-3 px-4">Enrolled Courses</th>
+                            <th className="py-3 px-4">Joined Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {studentUsers.map((u) => {
+                            const userEnrs = allEnrollments.filter((e) => e.userId === u.id || e.userId === u.userId);
+                            return (
+                              <tr key={u.id} className="hover:bg-slate-50">
+                                <td className="py-3.5 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase">
+                                    {(u.name || u.email || 'S').charAt(0)}
+                                  </div>
+                                  <span>{u.name || 'Aspire Student'}</span>
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-700 font-mono text-[11px]">{u.email}</td>
+                                <td className="py-3.5 px-4">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    u.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {u.role || 'student'}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  {userEnrs.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {userEnrs.map((e) => (
+                                        <span key={e.id} className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+                                          {e.courseTitle}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 text-[11px]">Free access only</span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-500">
+                                  {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : 'Active'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. ACTIVE ENROLLMENTS & PROGRESS TABLE */}
+                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900">Course Enrollments & Student Progress (खरीदे गए कोर्स)</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Active access records and syllabus completion status</p>
+                    </div>
+                    <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">
+                      {allEnrollments.length} Active
+                    </span>
+                  </div>
+
                   {allEnrollments.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
                       <GraduationCap className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs">No active enrollments found in database.</p>
+                      <p className="text-xs">No course enrollments found yet.</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {allEnrollments.map((enr) => (
-                        <div key={enr.id} className="p-4 sm:p-5 flex items-center justify-between gap-4">
+                        <div key={enr.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50">
                           <div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">
-                              {enr.status}
-                            </span>
-                            <h4 className="font-bold text-sm text-slate-900 mt-1">{enr.courseTitle}</h4>
-                            <p className="text-xs text-slate-500">
-                              Student UID: <span className="font-mono">{enr.userId}</span> • Enrolled on {new Date(enr.enrolledAt).toLocaleDateString('en-IN')}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">
+                                {enr.status}
+                              </span>
+                              <h4 className="font-bold text-sm text-slate-900">{enr.courseTitle}</h4>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Student UID: <span className="font-mono text-slate-700">{enr.userId}</span> &bull; Enrolled on {new Date(enr.enrolledAt).toLocaleDateString('en-IN')}
                             </p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2">
                             <span className="text-sm font-black text-slate-900">
                               {enr.progress?.percentage || 0}% Completed
                             </span>
+                            <div className="w-28 bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-600 h-full rounded-full"
+                                style={{ width: `${enr.progress?.percentage || 0}%` }}
+                              ></div>
+                            </div>
                             <p className="text-[11px] text-slate-400">
                               {enr.progress?.completedLessonIds?.length || 0} lessons cleared
                             </p>
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* QUIZZES & ASSESSMENTS SECTION (WITH MS WORD UPLOAD) */}
+            {activeSection === 'quizzes' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">Quizzes & Online Assessments (ऑनलाइन टेस्ट व क्विज़)</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Upload questions in bulk directly from Microsoft Word / text files or create custom chapter tests.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={() => {
+                        setShowWordQuizModal(true);
+                        if (courses.length > 0 && !quizCourseId) {
+                          setQuizCourseId(courses[0].id);
+                        }
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center gap-2 transition-all"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Quiz from MS Word (वर्ड फाइल से अपलोड)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quizzes List */}
+                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-slate-900">
+                      All Created Quizzes ({quizzes.length})
+                    </h3>
+                    <span className="text-xs text-slate-400">MCQ assessments with automatic student grading</span>
+                  </div>
+
+                  {quizzes.length === 0 ? (
+                    <div className="p-16 text-center text-slate-400 space-y-3">
+                      <FileQuestion className="w-12 h-12 mx-auto opacity-30 text-blue-600" />
+                      <p className="text-sm font-semibold text-slate-700">No quizzes uploaded yet</p>
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                        Click "Upload Quiz from MS Word" to copy-paste questions from your Word document or text file.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowWordQuizModal(true);
+                          if (courses.length > 0 && !quizCourseId) setQuizCourseId(courses[0].id);
+                        }}
+                        className="mt-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100"
+                      >
+                        Upload First Quiz from Word
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {quizzes.map((q) => {
+                        const course = courses.find((c) => c.id === q.courseId);
+                        return (
+                          <div key={q.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">
+                                  {q.questions.length} Questions
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">
+                                  {q.timeLimitMinutes || 15} Mins
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
+                                  Pass: {q.passingPercentage || 50}%
+                                </span>
+                              </div>
+                              <h4 className="font-bold text-base text-slate-900 mt-1">{q.title}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                Course: <span className="font-semibold text-slate-700">{course?.title || 'General Test'}</span>
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setViewingQuizDetails(q)}
+                                className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1.5"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>View Questions</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteQuiz(q.id)}
+                                className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 text-xs"
+                                title="Delete Quiz"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1947,6 +2306,297 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MS WORD QUIZ UPLOAD MODAL */}
+      {showWordQuizModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Upload Quiz from MS Word / Text (वर्ड फाइल से क्विज़ अपलोड)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Paste questions from Microsoft Word, Google Docs or select a text file. All questions & options will be automatically parsed!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWordQuizModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Target Course & Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Select Target Course *
+                  </label>
+                  <select
+                    value={quizCourseId}
+                    onChange={(e) => setQuizCourseId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white"
+                  >
+                    <option value="">-- Choose Course --</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Quiz Title *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Chapter 1: Reproduction in Organisms Test"
+                    value={quizTitleInput}
+                    onChange={(e) => setQuizTitleInput(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Quiz Parameters */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-4 rounded-2xl">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Time Limit (Mins)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quizTimeMinutes}
+                    onChange={(e) => setQuizTimeMinutes(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Pass Score (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={quizPassingMarks}
+                    onChange={(e) => setQuizPassingMarks(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
+                  />
+                </div>
+                <div className="col-span-2 flex items-end justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sampleText = `1. मानव शरीर में सबसे बड़ी ग्रंथि कौन सी है?
+A) अग्न्याशय (Pancreas)
+B) यकृत (Liver)
+C) थायरॉयड
+D) पीयूष ग्रंथि
+Ans: B
+
+2. प्रकाश संश्लेषण (Photosynthesis) की प्रक्रिया में कौन सी गैस निकलती है?
+A) कार्बन डाइऑक्साइड
+B) ऑक्सीजन (O2)
+C) नाइट्रोजन
+D) हाइड्रोजन
+Ans: B
+
+3. मनुष्य के हृदय में कितने कोष्ठ (Chambers) होते हैं?
+A) 2
+B) 3
+C) 4
+D) 5
+Ans: C`;
+                      setQuizWordRawText(sampleText);
+                      setParsedQuizQuestions(parseQuestionsFromText(sampleText));
+                      if (!quizTitleInput) setQuizTitleInput('जीव विज्ञान महत्वपूर्ण वस्तुनिष्ठ प्रश्नोत्तरी');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-amber-50 text-amber-800 font-bold border border-amber-200 hover:bg-amber-100 text-[11px]"
+                  >
+                    📝 Load Sample MS Word Questions
+                  </button>
+                  <label className="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300 cursor-pointer text-[11px]">
+                    📂 Select .txt / Word File
+                    <input
+                      type="file"
+                      accept=".txt,.doc,.docx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const content = (ev.target?.result as string) || '';
+                            setQuizWordRawText(content);
+                            setParsedQuizQuestions(parseQuestionsFromText(content));
+                          };
+                          reader.readAsText(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Paste Text Area */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    Paste Questions from MS Word / Text File:
+                  </label>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                    parsedQuizQuestions.length > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {parsedQuizQuestions.length} Questions Detected
+                  </span>
+                </div>
+                <textarea
+                  rows={8}
+                  placeholder={`1. प्रकाश संश्लेषण की क्रिया में क्या बनता है?\nA) ग्लूकोस\nB) यूरिया\nC) वसा\nD) प्रोटीन\nAns: A\n\n2. DNA का द्विकुंडली मॉडल किसने दिया था?\nA) वाटसन एवं क्रिक\nB) मेंडल\nC) डार्विन\nD) लैमार्क\nAns: A`}
+                  value={quizWordRawText}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    setQuizWordRawText(text);
+                    setParsedQuizQuestions(parseQuestionsFromText(text));
+                  }}
+                  className="w-full p-3.5 rounded-2xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-blue-600 bg-slate-50"
+                ></textarea>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  💡 Format tip: Number questions (1., 2.), options (A), B), C), D)) and correct answer (Ans: B or Answer: B).
+                </p>
+              </div>
+
+              {/* Parsed Live Preview */}
+              {parsedQuizQuestions.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                    Live Question Preview ({parsedQuizQuestions.length} parsed):
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto space-y-2.5 pr-2">
+                    {parsedQuizQuestions.map((q, idx) => (
+                      <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                        <div className="flex items-start justify-between">
+                          <span className="font-bold text-slate-900">
+                            {idx + 1}. {q.question}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                            Correct: Option {String.fromCharCode(65 + (q.correctAnswerIndex || 0))}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          {q.options.map((opt, oIdx) => (
+                            <div
+                              key={oIdx}
+                              className={`p-1.5 rounded-lg border ${
+                                oIdx === q.correctAnswerIndex
+                                  ? 'bg-emerald-50 border-emerald-300 font-bold text-emerald-900'
+                                  : 'bg-white border-slate-200 text-slate-600'
+                              }`}
+                            >
+                              <span className="mr-1.5 font-bold">{String.fromCharCode(65 + oIdx)})</span>
+                              <span>{opt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowWordQuizModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingQuiz || parsedQuizQuestions.length === 0}
+                  onClick={handleSaveWordQuiz}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingQuiz ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  <span>Save All {parsedQuizQuestions.length} Questions to Course</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW QUIZ DETAILS MODAL */}
+      {viewingQuizDetails && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{viewingQuizDetails.title}</h3>
+                <p className="text-xs text-slate-500">
+                  {viewingQuizDetails.questions.length} Questions &bull; Time: {viewingQuizDetails.timeLimitMinutes || 15} Mins &bull; Pass: {viewingQuizDetails.passingPercentage || 50}%
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingQuizDetails(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {viewingQuizDetails.questions.map((q, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                  <div className="flex items-start justify-between">
+                    <span className="font-bold text-slate-900 text-sm">
+                      {idx + 1}. {q.question}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                      Correct: Option {String.fromCharCode(65 + (q.correctAnswerIndex || 0))}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                    {q.options.map((opt, oIdx) => (
+                      <div
+                        key={oIdx}
+                        className={`p-2 rounded-xl border ${
+                          oIdx === q.correctAnswerIndex
+                            ? 'bg-emerald-50 border-emerald-300 font-bold text-emerald-900'
+                            : 'bg-white border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <span className="mr-1.5 font-bold">{String.fromCharCode(65 + oIdx)})</span>
+                        <span>{opt}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setViewingQuizDetails(null)}
+                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs"
+              >
+                Close Preview
+              </button>
+            </div>
           </div>
         </div>
       )}
