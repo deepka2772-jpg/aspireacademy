@@ -100,13 +100,15 @@ export const HomePage: React.FC<HomePageProps> = ({
               <span>{settings?.announcement || 'कक्षा 10वीं, 12वीं एवं NEET 2026 नए बैच में नामांकन प्रारंभ!'}</span>
             </div>
 
-            {/* Main Headline with Typewriter */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight sm:leading-tight">
-              सपनों को दें नई उड़ान with <br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent inline-block min-h-[1.2em]">
-                {typedText}
+            {/* Main Headline with Stabilized Typewriter */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight flex flex-col items-center">
+              <span className="text-white block">सपनों को दें नई उड़ान with</span>
+              <span className="h-20 sm:h-24 lg:h-28 flex items-center justify-center text-center px-2 max-w-full">
+                <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent inline-block">
+                  {typedText || '\u00A0'}
+                </span>
+                <span className="text-blue-400 animate-pulse font-light ml-1 select-none" aria-hidden="true">|</span>
               </span>
-              <span className="text-blue-400 animate-pulse font-normal">|</span>
             </h1>
 
             {/* Subtitle */}
