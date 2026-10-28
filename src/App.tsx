@@ -81,6 +81,20 @@ function AdminGatewayCard({ onSuccess, onReturnHome }: AdminGatewayCardProps) {
     }
   };
 
+  const handleOwnerDirect = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await loginMasterAdmin('', 'deepka2772@gmail.com');
+      setSuccess('Welcome Shekhar Sir! Admin access granted.');
+      setTimeout(() => onSuccess(), 300);
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto my-16 px-4">
       <div className="bg-white rounded-3xl border border-amber-200 shadow-xl p-8 text-center space-y-5 animate-in fade-in duration-200">
@@ -114,10 +128,21 @@ function AdminGatewayCard({ onSuccess, onReturnHome }: AdminGatewayCardProps) {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-3.5 text-left">
+        {/* 1-Click Direct Admin Access for deepka2772@gmail.com */}
+        <button
+          type="button"
+          onClick={handleOwnerDirect}
+          disabled={loading}
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 hover:from-amber-700 hover:to-amber-900 text-white font-bold text-xs sm:text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Shield className="w-4 h-4 text-amber-200" />
+          <span>⚡ 1-Click Login as deepka2772@gmail.com</span>
+        </button>
+
+        <form onSubmit={handleLogin} className="space-y-3.5 text-left pt-2">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Master Admin Password
+              Or Master Admin Password
             </label>
             <div className="relative">
               <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-amber-600" />
@@ -146,37 +171,18 @@ function AdminGatewayCard({ onSuccess, onReturnHome }: AdminGatewayCardProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <>
-                <Shield className="w-4 h-4" />
+                <Key className="w-4 h-4 text-amber-400" />
                 <span>Sign In With Master Password</span>
               </>
             )}
           </button>
         </form>
-
-        <div className="relative my-2">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200"></div>
-          </div>
-          <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-            <span className="bg-white px-2 text-slate-400 font-bold">Fast Access</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleQuick}
-          disabled={loading}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <Zap className="w-3.5 h-3.5 text-amber-400" />
-          <span>1-Click Instant Master Admin Access</span>
-        </button>
 
         <div className="pt-3 border-t border-slate-100">
           <button

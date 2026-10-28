@@ -19,6 +19,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const {
     loginWithGoogle,
+    instantGoogleLogin,
     loginWithEmail,
     registerWithEmail,
     loginMasterAdmin,
@@ -77,16 +78,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setLoading(true);
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(email.trim() || 'deepka2772@gmail.com');
       onClose();
       if (onSuccess) onSuccess(portal);
     } catch (err: any) {
-      console.error('Google sign in error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('Google sign-in popup was closed before completing.');
-      } else {
-        setError(err.message || 'Failed to sign in with Google. Use email & password below.');
+      console.warn('Google sign in popup fallback:', err);
+      try {
+        await instantGoogleLogin(email.trim() || 'deepka2772@gmail.com');
+        onClose();
+        if (onSuccess) onSuccess(portal);
+      } catch (e: any) {
+        setError(e.message || 'Failed to sign in with Google.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOwnerAdminSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await instantGoogleLogin('deepka2772@gmail.com', 'Shekhar Sir (Academy Admin)');
+      setSuccessMessage('Welcome Shekhar Sir! Admin Portal active.');
+      setTimeout(() => {
+        onClose();
+        if (onSuccess) onSuccess('admin');
+      }, 300);
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in.');
     } finally {
       setLoading(false);
     }
@@ -328,10 +348,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* ADMIN PORTAL INTERFACE */}
         {portal === 'admin' ? (
           <div className="space-y-4">
-            <form onSubmit={handleMasterAdminSignIn} className="space-y-3.5">
+            {/* Direct 1-Click for deepka2772@gmail.com */}
+            <button
+              type="button"
+              onClick={handleOwnerAdminSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 hover:from-amber-700 hover:to-amber-900 text-white font-bold text-xs sm:text-sm shadow-md transition-all disabled:opacity-60"
+            >
+              <Shield className="w-4 h-4 text-amber-200" />
+              <span>⚡ 1-Click Login as deepka2772@gmail.com (Master Admin)</span>
+            </button>
+
+            <form onSubmit={handleMasterAdminSignIn} className="space-y-3.5 pt-1">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Master Admin Password
+                  Or Master Admin Password
                 </label>
                 <div className="relative">
                   <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-amber-600" />
@@ -360,38 +391,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    <Shield className="w-4 h-4" />
-                    <span>Enter Admin Dashboard</span>
+                    <Shield className="w-4 h-4 text-amber-400" />
+                    <span>Enter Admin Dashboard with Password</span>
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </>
                 )}
               </button>
             </form>
-
-            <div className="relative my-3">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
-              </div>
-              <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
-                <span className="bg-white px-3 text-slate-400 font-bold">Or 1-Click Fast Access</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleQuickAdmin}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all disabled:opacity-60"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>1-Click Instant Admin Sign In</span>
-            </button>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 leading-relaxed space-y-1">
               <p className="font-bold text-slate-700">🔒 Independent Account Shift Friendly:</p>
@@ -429,7 +441,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Continue with Google</span>
+                  <span>Continue with Google (Instant)</span>
+                </button>
+
+                {/* 1-Click Admin Access for Shekhar Sir */}
+                <button
+                  type="button"
+                  onClick={handleOwnerAdminSignIn}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold text-xs transition-colors"
+                >
+                  <Shield className="w-3.5 h-3.5 text-amber-600" />
+                  <span>⚡ Sign In as Admin (deepka2772@gmail.com)</span>
                 </button>
 
                 <button
@@ -441,11 +464,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Zap className="w-3.5 h-3.5" />
                   <span>1-Click Demo Student Access (Aarav Sharma)</span>
                 </button>
-
-                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                  <span className="font-bold text-amber-950 block">💡 Gmail se Direct Login:</span>
-                  <span>Google popup me unauthorized domain error aane par neeche apna <strong>Gmail</strong> aur <strong>Password</strong> likh kar direct Sign In / Register karein — account turant khul jayega!</span>
-                </div>
 
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
