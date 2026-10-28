@@ -258,14 +258,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onNavigate, onOpenAu
             {/* Mobile menu hamburger button */}
             <div className="flex lg:hidden items-center gap-2">
               <button
-                onClick={() => {
-                  if (isAdmin) {
-                    handleNavClick('admin');
-                  } else {
-                    onOpenAuth('login', 'admin');
-                  }
-                }}
+                onClick={() => handleNavClick('admin')}
                 className="p-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1"
+                title="Admin Gateway"
               >
                 <Shield className="w-3.5 h-3.5 text-amber-600" />
                 <span className="text-[11px]">Admin</span>
@@ -301,13 +296,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onNavigate, onOpenAu
               </button>
 
               <button
-                onClick={() => {
-                  if (isAdmin) {
-                    handleNavClick('admin');
-                  } else {
-                    onOpenAuth('login', 'admin');
-                  }
-                }}
+                onClick={() => handleNavClick('admin')}
                 className="py-2.5 px-3 rounded-xl bg-amber-50 text-amber-800 font-bold text-xs flex items-center justify-center gap-1.5"
               >
                 <Shield className="w-4 h-4 text-amber-600" />

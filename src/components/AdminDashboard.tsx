@@ -1276,20 +1276,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onPreviewCourse 
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            PDF Document Link or Public Material URL *
-                          </label>
+                        <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="block text-xs font-bold text-amber-950 uppercase">
+                              PDF Document Material / Handout *
+                            </label>
+                            <div>
+                              <input
+                                type="file"
+                                id="admin-pdf-file-picker"
+                                accept="application/pdf,.pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (file.size > 25 * 1024 * 1024) {
+                                      showNotify('File size exceeds 25 MB limit.', 'error');
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      const dataUrl = (ev.target?.result as string) || '';
+                                      setEditingLesson({
+                                        ...editingLesson,
+                                        contentUrl: dataUrl,
+                                        title: editingLesson.title || file.name.replace(/\.[^/.]+$/, ''),
+                                      });
+                                      showNotify(`Attached PDF: ${file.name} (${Math.round(file.size / 1024)} KB)`);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor="admin-pdf-file-picker"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs cursor-pointer shadow-sm transition-all"
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Browse PDF from Device</span>
+                              </label>
+                            </div>
+                          </div>
+
                           <input
-                            type="url"
+                            type="text"
                             required
-                            placeholder="https://example.com/syllabus-handout.pdf"
-                            value={editingLesson.contentUrl || ''}
+                            placeholder="Paste direct URL (e.g. https://.../notes.pdf) or browse file above"
+                            value={editingLesson.contentUrl?.startsWith('data:') ? '📎 Local PDF Attached (Embedded Document)' : (editingLesson.contentUrl || '')}
                             onChange={(e) =>
                               setEditingLesson({ ...editingLesson, contentUrl: e.target.value })
                             }
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-blue-600"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-white text-xs sm:text-sm focus:ring-2 focus:ring-amber-500"
                           />
+
+                          {editingLesson.contentUrl && (
+                            <div className="flex items-center justify-between text-xs text-amber-900 bg-amber-100/60 p-2 rounded-xl">
+                              <span className="font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>PDF Ready for Student View & Download</span>
+                              </span>
+                              <a
+                                href={editingLesson.contentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-bold text-amber-800 hover:underline"
+                              >
+                                Open Preview ↗
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )}
 
